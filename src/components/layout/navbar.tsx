@@ -4,6 +4,7 @@ import { Logo } from "./logo";
 import { UserMenu, type SessionInfo } from "./user-menu";
 import { NavLinks } from "./nav-links";
 import { MobileMenu } from "./mobile-menu";
+import { InstallAppButton } from "./install-app-button";
 
 export async function Navbar() {
   const session = await getSessionUser();
@@ -26,6 +27,10 @@ export async function Navbar() {
         </div>
         <NavLinks />
         <div className="flex items-center gap-2">
+          <InstallAppButton
+            className="inline-flex size-10 items-center justify-center gap-1.5 rounded-full border text-sm font-semibold hover:bg-accent sm:w-auto sm:px-4 sm:py-2"
+            labelClassName="hidden sm:inline"
+          />
           <Link
             href="/mapa"
             className="hidden rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark sm:inline-block"

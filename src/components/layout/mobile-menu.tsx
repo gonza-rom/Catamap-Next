@@ -9,6 +9,7 @@ import { Logo } from "./logo";
 import type { SessionInfo } from "./user-menu";
 import { useAuthModal } from "@/components/auth/auth-modal";
 import { logoutAction } from "@/lib/actions/auth";
+import { InstallAppButton } from "./install-app-button";
 
 const LINKS = [
   { href: "/", label: "Inicio", icon: Home },
@@ -48,6 +49,9 @@ export function MobileMenu({ session }: { session: SessionInfo }) {
               <Icon className="size-4" /> {label}
             </Link>
           ))}
+          <InstallAppButton
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-brand hover:bg-accent"
+          />
         </nav>
 
         <div className="mt-auto border-t p-3">
