@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Catamap
 
-## Getting Started
+Plataforma de turismo colaborativo de Catamarca — migrada desde PHP/MySQL a **Next.js 16 + TypeScript
++ Prisma + Supabase**, con Cloudinary para imágenes y Leaflet para el mapa interactivo.
 
-First, run the development server:
+Repo original (PHP): https://github.com/gonza-rom/Catamap
+
+## Stack
+
+- Next.js 16 (App Router) + React 19 + TypeScript
+- Prisma → Supabase Postgres
+- Supabase Auth (`@supabase/ssr`)
+- Tailwind CSS v4 + shadcn/ui + sonner
+- Leaflet + react-leaflet (mapa) + OpenRouteService (ruteo)
+- Cloudinary (`next-cloudinary`)
+
+## Desarrollo
 
 ```bash
+npm install
+npm run db:migrate   # crea el esquema en Supabase (usa DIRECT_URL)
+npm run db:seed       # importa data/catamap.json (dump del proyecto PHP)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `npm run db:studio` — abre Prisma Studio.
+- `npm run build` — build de producción (corre `prisma generate` primero).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables de entorno
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ver `.env.example`. Las claves reales viven en `.env` (no se commitea).
 
-## Learn More
+- **Supabase**: URL + anon key (públicas) + service role key (sólo servidor, usada en el seed y en
+  `registerAction`/admin).
+- **`DATABASE_URL`** (pooler, puerto 6543) para runtime; **`DIRECT_URL`** (puerto 5432) para
+  migraciones.
+- **Cloudinary**: cloud name + upload preset *unsigned* (`catamap`) para subir imágenes desde el
+  cliente (avatar, sugerencias, admin).
+- **`ORS_API_KEY`**: key gratuita de [OpenRouteService](https://openrouteservice.org/dev/#/signup)
+  para el botón "Ir aquí" del mapa. Sin ella, el ruteo muestra un error pero el resto del mapa
+  funciona igual.
+- **`SEED_DEFAULT_PASSWORD`**: password que se le asigna a los usuarios importados del dump PHP
+  (sus contraseñas bcrypt originales no son migrables a Supabase Auth).
 
-To learn more about Next.js, take a look at the following resources:
+## Datos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`data/catamap.json` es el export JSON de phpMyAdmin del proyecto PHP original (usuarios, categorías,
+departamentos, 1419 lugares, comentarios, favoritos, sugerencias, mensajes, seguidores, insignias).
+`prisma/seed.ts` lo parsea, crea los usuarios en Supabase Auth (remapeando sus IDs `int` a `uuid`) y
+carga todo lo demás. Es idempotente: se puede correr de nuevo y vuelve a dejar la base en el mismo
+estado (reutiliza los usuarios de Auth existentes).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura
 
-## Deploy on Vercel
+```
+src/app/(main)/     páginas públicas: home, lugares, lugares/[id], perfil, perfil/[id], mensajes, sugerir
+src/app/mapa/        mapa interactivo (full-bleed, sin navbar)
+src/app/admin/       panel de administración (guard de rol admin)
+src/app/api/         route handlers consumidos por el cliente (mensajes, ruta ORS)
+src/components/      UI por dominio (map, lugares, perfil, admin, auth, layout) + shadcn en ui/
+src/lib/actions/     server actions (mutaciones)
+src/lib/data/        queries de lectura reutilizadas por las páginas
+prisma/schema.prisma esquema completo + prisma/seed.ts
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Paridad con el proyecto PHP
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Implementado: auth (registro/login/logout con Supabase Auth), mapa con capas base, polígonos de
+departamentos, filtro por categoría, búsqueda, geolocalización, ruteo, favoritos en mapa,
+catálogo de lugares con filtros y paginación, detalle con reseñas/valoración y moderación,
+favoritos, sugerir lugar (con mapa click-to-coords y foto), perfil propio (7 tabs), perfil público
+con privacidad, seguidores, mensajería con polling, insignias, y panel admin completo (dashboard,
+usuarios, lugares, sugerencias, comentarios, categorías, departamentos).
+
+Mejoras respecto del original: sin SQL injection, sin CORS abierto en auth, un solo endpoint de
+privacidad y de seguir/dejar de seguir (el PHP tenía 3 y 2 duplicados respectivamente),
+`motivo_rechazo`/`fecha_revision` de sugerencias ahora se escriben, editar una reseña siempre la
+vuelve a poner en `pendiente`.

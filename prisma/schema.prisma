@@ -1,0 +1,252 @@
+// Catamap — esquema reconstruido desde el dump MySQL (data/catamap.sql)
+// Los IDs de usuario pasan de int -> uuid (Supabase Auth). Nombres de tabla/columna
+// se conservan en español via @@map/@map para mantener la equivalencia con el original.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Rol {
+  usuario
+  emprendedor
+  admin
+}
+
+enum EstadoUsuario {
+  activo
+  suspendido
+  inactivo
+}
+
+enum EstadoLugar {
+  pendiente
+  aprobado
+  rechazado
+}
+
+enum EstadoSugerencia {
+  pendiente
+  aprobado
+  rechazado
+}
+
+enum EstadoComentario {
+  pendiente
+  aprobado
+  rechazado
+}
+
+/// 1:1 con auth.users de Supabase. Reemplaza `usuarios` + `sesiones_usuarios`.
+model Perfil {
+  id            String        @id @db.Uuid
+  nombre        String        @db.VarChar(100)
+  rol           Rol           @default(usuario)
+  estado        EstadoUsuario @default(activo)
+  imagenPerfil  String?       @map("imagen_perfil") @db.VarChar(500)
+  telefono      String?       @db.VarChar(30)
+  bio           String?       @db.Text
+  fechaRegistro DateTime      @default(now()) @map("fecha_registro")
+  ultimoAcceso  DateTime?     @map("ultimo_acceso")
+
+  comentarios          Comentario[]
+  favoritos            Favorito[]
+  sugerencias          LugarSugerido[]   @relation("SugerenciasUsuario")
+  sugerenciasRevisadas LugarSugerido[]   @relation("SugerenciasRevisor")
+  mensajesEnviados     Mensaje[]         @relation("MensajesRemitente")
+  mensajesRecibidos    Mensaje[]         @relation("MensajesDestinatario")
+  siguiendo            Seguidor[]        @relation("Seguidor")
+  seguidores           Seguidor[]        @relation("Seguido")
+  insignias            UsuarioInsignia[]
+  privacidad           ConfiguracionPrivacidad?
+
+  @@map("perfiles")
+}
+
+model Categoria {
+  idCategoria Int     @id @default(autoincrement()) @map("id_categoria")
+  nombre      String  @db.VarChar(100)
+  descripcion String? @db.Text
+  icono       String  @db.VarChar(16)
+
+  lugares     Lugar[]
+  sugerencias LugarSugerido[]
+
+  @@map("categorias")
+}
+
+model Departamento {
+  id     Int    @id @default(autoincrement())
+  nombre String @unique @db.VarChar(60)
+
+  lugares     Lugar[]
+  sugerencias LugarSugerido[]
+
+  @@map("departamentos")
+}
+
+model Lugar {
+  id             Int         @id @default(autoincrement())
+  nombre         String      @db.VarChar(150)
+  descripcion    String?     @db.Text
+  direccion      String?     @db.VarChar(200)
+  lat            Float?
+  lng            Float?
+  imagen         String?     @db.VarChar(500)
+  idCategoria    Int?        @map("id_categoria")
+  idDepartamento Int?        @map("id_departamento")
+  estado         EstadoLugar @default(aprobado)
+  idSugerencia   Int?        @unique @map("id_sugerencia")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  categoria    Categoria?     @relation(fields: [idCategoria], references: [idCategoria])
+  departamento Departamento?  @relation(fields: [idDepartamento], references: [id])
+  sugerencia   LugarSugerido? @relation(fields: [idSugerencia], references: [id])
+  comentarios  Comentario[]
+  favoritos    Favorito[]
+
+  @@index([idCategoria])
+  @@index([idDepartamento])
+  @@index([estado])
+  @@map("lugares_turisticos")
+}
+
+model LugarSugerido {
+  id             Int              @id @default(autoincrement())
+  idUsuario      String           @map("id_usuario") @db.Uuid
+  nombre         String           @db.VarChar(255)
+  descripcion    String?          @db.Text
+  direccion      String?          @db.VarChar(255)
+  lat            Float
+  lng            Float
+  idCategoria    Int?             @map("id_categoria")
+  idDepartamento Int?             @map("id_departamento")
+  imagen         String?          @db.VarChar(500)
+  estado         EstadoSugerencia @default(pendiente)
+  motivoRechazo  String?          @map("motivo_rechazo") @db.Text
+  fechaSugerido  DateTime         @default(now()) @map("fecha_sugerido")
+  fechaRevision  DateTime?        @map("fecha_revision")
+  revisadoPor    String?          @map("revisado_por") @db.Uuid
+
+  usuario        Perfil        @relation("SugerenciasUsuario", fields: [idUsuario], references: [id], onDelete: Cascade)
+  revisor        Perfil?       @relation("SugerenciasRevisor", fields: [revisadoPor], references: [id], onDelete: SetNull)
+  categoria      Categoria?    @relation(fields: [idCategoria], references: [idCategoria])
+  departamento   Departamento? @relation(fields: [idDepartamento], references: [id])
+  lugarPublicado Lugar?
+
+  @@index([idUsuario])
+  @@index([estado])
+  @@map("lugares_sugeridos")
+}
+
+model Comentario {
+  id                Int              @id @default(autoincrement())
+  idLugar           Int              @map("id_lugar")
+  idUsuario         String           @map("id_usuario") @db.Uuid
+  calificacion      Int              @db.SmallInt
+  comentario        String           @db.Text
+  estado            EstadoComentario @default(pendiente)
+  fechaCreacion     DateTime         @default(now()) @map("fecha_creacion")
+  fechaModificacion DateTime?        @updatedAt @map("fecha_modificacion")
+
+  lugar   Lugar  @relation(fields: [idLugar], references: [id], onDelete: Cascade)
+  usuario Perfil @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+
+  @@unique([idUsuario, idLugar])
+  @@index([idLugar])
+  @@index([estado])
+  @@map("comentarios")
+}
+
+model Favorito {
+  id            Int      @id @default(autoincrement())
+  idUsuario     String   @map("id_usuario") @db.Uuid
+  idLugar       Int      @map("id_lugar")
+  fechaAgregado DateTime @default(now()) @map("fecha_agregado")
+
+  usuario Perfil @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  lugar   Lugar  @relation(fields: [idLugar], references: [id], onDelete: Cascade)
+
+  @@unique([idUsuario, idLugar])
+  @@index([idUsuario])
+  @@index([idLugar])
+  @@map("favoritos")
+}
+
+model Seguidor {
+  id          Int      @id @default(autoincrement())
+  idSeguidor  String   @map("id_seguidor") @db.Uuid
+  idSeguido   String   @map("id_seguido") @db.Uuid
+  fechaInicio DateTime @default(now()) @map("fecha_inicio")
+
+  seguidor Perfil @relation("Seguidor", fields: [idSeguidor], references: [id], onDelete: Cascade)
+  seguido  Perfil @relation("Seguido", fields: [idSeguido], references: [id], onDelete: Cascade)
+
+  @@unique([idSeguidor, idSeguido])
+  @@index([idSeguidor])
+  @@index([idSeguido])
+  @@map("seguidores")
+}
+
+model Mensaje {
+  id             Int      @id @default(autoincrement())
+  idRemitente    String   @map("id_remitente") @db.Uuid
+  idDestinatario String   @map("id_destinatario") @db.Uuid
+  mensaje        String   @db.Text
+  leido          Boolean  @default(false)
+  fechaEnvio     DateTime @default(now()) @map("fecha_envio")
+
+  remitente    Perfil @relation("MensajesRemitente", fields: [idRemitente], references: [id], onDelete: Cascade)
+  destinatario Perfil @relation("MensajesDestinatario", fields: [idDestinatario], references: [id], onDelete: Cascade)
+
+  @@index([idRemitente])
+  @@index([idDestinatario])
+  @@index([leido])
+  @@map("mensajes")
+}
+
+model Insignia {
+  id               Int     @id @default(autoincrement())
+  nombre           String  @db.VarChar(100)
+  descripcion      String? @db.Text
+  icono            String? @db.VarChar(100)
+  criterio         String? @db.VarChar(255)
+  puntosRequeridos Int     @default(0) @map("puntos_requeridos")
+
+  usuarios UsuarioInsignia[]
+
+  @@map("insignias")
+}
+
+model UsuarioInsignia {
+  idUsuario      String   @map("id_usuario") @db.Uuid
+  idInsignia     Int      @map("id_insignia")
+  fechaObtencion DateTime @default(now()) @map("fecha_obtencion")
+
+  usuario  Perfil   @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  insignia Insignia @relation(fields: [idInsignia], references: [id], onDelete: Cascade)
+
+  @@id([idUsuario, idInsignia])
+  @@index([idInsignia])
+  @@map("usuarios_insignias")
+}
+
+model ConfiguracionPrivacidad {
+  id                  Int     @id @default(autoincrement())
+  idUsuario           String  @unique @map("id_usuario") @db.Uuid
+  perfilPublico       Boolean @default(true) @map("perfil_publico")
+  favoritosPublicos   Boolean @default(true) @map("favoritos_publicos")
+  comentariosPublicos Boolean @default(true) @map("comentarios_publicos")
+  mostrarEstadisticas Boolean @default(true) @map("mostrar_estadisticas")
+
+  usuario Perfil @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+
+  @@map("configuracion_privacidad")
+}
