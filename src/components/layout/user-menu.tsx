@@ -53,12 +53,12 @@ export function UserMenu({ session }: { session: SessionInfo }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-3 hover:bg-accent transition">
+        <button className="flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-1.5 hover:bg-accent transition sm:pr-3">
           <Avatar className="size-8">
             {session.imagenPerfil && <AvatarImage src={session.imagenPerfil} alt={session.nombre} />}
             <AvatarFallback className="bg-app-gradient text-white text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium max-w-28 truncate">{session.nombre}</span>
+          <span className="hidden max-w-28 truncate text-sm font-medium sm:inline">{session.nombre}</span>
           {unread > 0 && (
             <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
               {unread}

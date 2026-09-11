@@ -1,16 +1,12 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import "./map-styles.css";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState } from "react";
+import { simplePin } from "./icons";
 
-const pin = L.divIcon({
-  className: "",
-  html: `<span style="font-size:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">📍</span>`,
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-});
+const pin = simplePin({ color: "#22c55e" });
 
 function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({

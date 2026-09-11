@@ -1,13 +1,30 @@
 import L from "leaflet";
+import { categoryIconSvg, iconToSvg } from "@/lib/icon-svg";
+import { Star, MapPin } from "lucide-react";
 
-/** Marcador con emoji de categoría. */
-export function emojiIcon(emoji: string) {
+/** Pin de mapa (círculo + colita) con el ícono Lucide de la categoría dada. */
+export function categoryPin(nombre: string | null | undefined, opts?: { color?: string }) {
+  const svg = categoryIconSvg(nombre, { size: 16, color: "#fff" });
+  const bg = opts?.color ?? "var(--brand, #e07b39)";
   return L.divIcon({
-    className: "cm-emoji-marker",
-    html: `<span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">${emoji || "📍"}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 28],
-    popupAnchor: [0, -26],
+    className: "cm-marker",
+    html: `<span class="cm-marker-badge" style="background:${bg}">${svg}</span><span class="cm-marker-tail" style="border-top-color:${bg}"></span>`,
+    iconSize: [30, 40],
+    iconAnchor: [15, 40],
+    popupAnchor: [0, -38],
+  });
+}
+
+/** Pin genérico (sin categoría) — mini-mapa de detalle, selector de ubicación. */
+export function simplePin(opts?: { color?: string; size?: number }) {
+  const size = opts?.size ?? 34;
+  const svg = iconToSvg(MapPin, { size: size * 0.6, color: opts?.color ?? "#e07b39", strokeWidth: 2.5 });
+  return L.divIcon({
+    className: "cm-simple-pin",
+    html: svg,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size + 2],
   });
 }
 
@@ -21,13 +38,14 @@ export function userIcon() {
   });
 }
 
-/** Marcador de favorito (estrella dorada). */
+/** Marcador de favorito (badge dorado con estrella). */
 export function favIcon() {
+  const svg = iconToSvg(Star, { size: 15, color: "#fff" });
   return L.divIcon({
-    className: "cm-fav-marker",
-    html: `<span style="font-size:24px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">⭐</span>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 26],
-    popupAnchor: [0, -24],
+    className: "cm-marker",
+    html: `<span class="cm-marker-badge" style="background:#d4a017">${svg}</span><span class="cm-marker-tail" style="border-top-color:#d4a017"></span>`,
+    iconSize: [30, 40],
+    iconAnchor: [15, 40],
+    popupAnchor: [0, -38],
   });
 }

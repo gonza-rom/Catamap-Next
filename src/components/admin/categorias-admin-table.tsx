@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { CategoryIcon } from "@/components/category-icon";
 import { adminCrearCategoria, adminActualizarCategoria, adminEliminarCategoria } from "@/lib/actions/admin";
 
-type Cat = { id: number; nombre: string; descripcion: string | null; icono: string; totalLugares: number };
+type Cat = { id: number; nombre: string; descripcion: string | null; totalLugares: number };
 
 export function CategoriasAdminTable({ categorias }: { categorias: Cat[] }) {
   const router = useRouter();
@@ -40,7 +41,11 @@ export function CategoriasAdminTable({ categorias }: { categorias: Cat[] }) {
           <tbody>
             {categorias.map((c) => (
               <tr key={c.id} className="border-t">
-                <td className="p-3 text-xl">{c.icono}</td>
+                <td className="p-3">
+                  <span className="grid size-8 place-items-center rounded-lg bg-admin/10 text-admin">
+                    <CategoryIcon nombre={c.nombre} className="size-4" />
+                  </span>
+                </td>
                 <td className="p-3 font-medium">{c.nombre}</td>
                 <td className="p-3 text-muted-foreground">{c.descripcion || "—"}</td>
                 <td className="p-3">{c.totalLugares}</td>
@@ -96,21 +101,19 @@ export function CategoriasAdminTable({ categorias }: { categorias: Cat[] }) {
 function CategoriaForm({ categoria, onDone }: { categoria: Cat | null; onDone: () => void }) {
   const [nombre, setNombre] = useState(categoria?.nombre ?? "");
   const [descripcion, setDescripcion] = useState(categoria?.descripcion ?? "");
-  const [icono, setIcono] = useState(categoria?.icono ?? "📍");
   const [pending, start] = useTransition();
 
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label>Icono (emoji)</Label>
-        <div className="flex items-center gap-2">
-          <Input value={icono} onChange={(e) => setIcono(e.target.value)} className="w-20 text-center text-xl" maxLength={4} />
-          <span className="text-2xl">{icono}</span>
-        </div>
-      </div>
-      <div className="space-y-1.5">
         <Label>Nombre</Label>
-        <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <div className="flex items-center gap-2">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-admin/10 text-admin">
+            <CategoryIcon nombre={nombre || "otros"} className="size-5" />
+          </span>
+          <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Mirador" />
+        </div>
+        <p className="text-xs text-muted-foreground">El ícono se elige automáticamente según el nombre.</p>
       </div>
       <div className="space-y-1.5">
         <Label>Descripción</Label>
@@ -118,12 +121,12 @@ function CategoriaForm({ categoria, onDone }: { categoria: Cat | null; onDone: (
       </div>
       <DialogFooter>
         <button
-          disabled={pending}
+          disabled={pending || !nombre.trim()}
           onClick={() =>
             start(async () => {
               const res = categoria
-                ? await adminActualizarCategoria(categoria.id, { nombre, descripcion, icono })
-                : await adminCrearCategoria({ nombre, descripcion, icono });
+                ? await adminActualizarCategoria(categoria.id, { nombre, descripcion })
+                : await adminCrearCategoria({ nombre, descripcion });
               if (res.ok) {
                 toast.success(categoria ? "Categoría actualizada" : "Categoría creada");
                 onDone();

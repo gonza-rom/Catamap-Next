@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fechaHora } from "@/lib/format";
 
@@ -62,8 +62,8 @@ export function MensajesClient({ chatInicial }: { chatInicial: { id: string; nom
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-6xl">
-      {/* lista */}
-      <aside className="flex w-full max-w-xs flex-col border-r">
+      {/* lista: pantalla completa en mobile si no hay chat activo, panel fijo en desktop */}
+      <aside className={cn("w-full flex-col border-r md:flex md:w-full md:max-w-xs", activo ? "hidden md:flex" : "flex")}>
         <div className="bg-app-gradient p-4 font-heading text-lg font-bold text-white">Mensajes</div>
         <div className="flex-1 overflow-y-auto">
           {listaCompleta.length === 0 && (
@@ -101,8 +101,8 @@ export function MensajesClient({ chatInicial }: { chatInicial: { id: string; nom
         </div>
       </aside>
 
-      {/* chat */}
-      <section className="flex flex-1 flex-col">
+      {/* chat: se muestra a pantalla completa en mobile cuando hay uno activo */}
+      <section className={cn("flex-1 flex-col", activo ? "flex" : "hidden md:flex")}>
         {!activo ? (
           <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
             Seleccioná una conversación
@@ -110,6 +110,13 @@ export function MensajesClient({ chatInicial }: { chatInicial: { id: string; nom
         ) : (
           <>
             <div className="flex items-center gap-3 border-b p-3">
+              <button
+                onClick={() => setActivo(null)}
+                className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-accent md:hidden"
+                aria-label="Volver a conversaciones"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
               <Image
                 src={activo.imagen || `https://ui-avatars.com/api/?name=${encodeURIComponent(activo.nombre)}`}
                 alt=""

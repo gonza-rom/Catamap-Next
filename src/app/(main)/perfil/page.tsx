@@ -62,22 +62,22 @@ export default async function PerfilPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       {/* Header */}
-      <div className="flex flex-col items-center gap-4 rounded-2xl bg-app-gradient p-6 text-center text-white sm:flex-row sm:text-left">
+      <div className="flex flex-col items-center gap-4 rounded-2xl bg-app-gradient p-5 text-center text-white sm:p-6 md:flex-row md:text-left">
         <Image
           src={avatarImg(perfil.imagenPerfil, perfil.nombre)}
           alt={perfil.nombre}
           width={88}
           height={88}
-          className="size-22 rounded-full border-4 border-white/30 object-cover"
+          className="size-20 shrink-0 rounded-full border-4 border-white/30 object-cover sm:size-22"
         />
-        <div className="flex-1">
-          <h1 className="font-heading text-2xl font-bold">{perfil.nombre}</h1>
-          <p className="text-white/80">{email}</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="font-heading text-xl font-bold sm:text-2xl">{perfil.nombre}</h1>
+          <p className="break-all text-sm text-white/80 sm:text-base">{email}</p>
           <span className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs capitalize">
             {perfil.rol}
           </span>
         </div>
-        <div className="grid grid-cols-4 gap-3 text-center">
+        <div className="grid w-full max-w-xs grid-cols-4 gap-2 text-center sm:gap-3 md:w-auto">
           {[
             ["Favoritos", stats.favoritos],
             ["Reseñas", stats.resenas],
@@ -85,8 +85,8 @@ export default async function PerfilPage() {
             ["Siguiendo", stats.siguiendo],
           ].map(([k, v]) => (
             <div key={k as string}>
-              <div className="text-xl font-bold">{v as number}</div>
-              <div className="text-[11px] uppercase text-white/70">{k as string}</div>
+              <div className="text-lg font-bold sm:text-xl">{v as number}</div>
+              <div className="text-[10px] uppercase text-white/70 sm:text-[11px]">{k as string}</div>
             </div>
           ))}
         </div>

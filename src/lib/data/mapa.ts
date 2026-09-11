@@ -9,7 +9,6 @@ export type MapaLugar = {
   lng: number;
   imagen: string | null;
   categoria: string;
-  icono: string;
   departamento: string;
 };
 
@@ -24,7 +23,7 @@ export async function getMapaLugares(): Promise<MapaLugar[]> {
       lat: true,
       lng: true,
       imagen: true,
-      categoria: { select: { nombre: true, icono: true } },
+      categoria: { select: { nombre: true } },
       departamento: { select: { nombre: true } },
     },
   });
@@ -38,7 +37,6 @@ export async function getMapaLugares(): Promise<MapaLugar[]> {
     lng: l.lng!,
     imagen: l.imagen,
     categoria: l.categoria?.nombre ?? "Otros",
-    icono: l.categoria?.icono ?? "📍",
     departamento: (l.departamento?.nombre ?? "DESCONOCIDO").toUpperCase(),
   }));
 }

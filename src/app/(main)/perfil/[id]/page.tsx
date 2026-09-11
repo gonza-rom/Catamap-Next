@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { avatarImg, lugarImg } from "@/lib/images";
 import { mesAnio } from "@/lib/format";
+import { getInsigniaIcon } from "@/lib/badge-icons";
 import { SeguirButton } from "@/components/perfil/seguir-button";
 
 type Params = Promise<{ id: string }>;
@@ -150,15 +151,18 @@ export default async function PerfilPublicoPage({ params }: { params: Params }) 
         <section className="mt-8 rounded-2xl border p-5">
           <h2 className="font-heading font-semibold">Insignias</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {insignias.map((ui) => (
-              <span
-                key={ui.idInsignia}
-                title={ui.insignia.descripcion ?? undefined}
-                className="rounded-full bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand"
-              >
-                🏅 {ui.insignia.nombre}
-              </span>
-            ))}
+            {insignias.map((ui) => {
+              const Icon = getInsigniaIcon(ui.insignia.nombre);
+              return (
+                <span
+                  key={ui.idInsignia}
+                  title={ui.insignia.descripcion ?? undefined}
+                  className="flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand"
+                >
+                  <Icon className="size-4" /> {ui.insignia.nombre}
+                </span>
+              );
+            })}
           </div>
         </section>
       )}

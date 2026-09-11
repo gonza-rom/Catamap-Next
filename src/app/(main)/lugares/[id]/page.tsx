@@ -2,11 +2,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Tag } from "lucide-react";
+import { MapPin, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { lugarImg } from "@/lib/images";
 import { fechaHora } from "@/lib/format";
+import { CategoryIcon } from "@/components/category-icon";
 import { Estrellas } from "@/components/lugares/estrellas";
 import { FavoritoButton } from "@/components/lugares/favorito-button";
 import { ComentariosSection } from "@/components/lugares/comentarios-section";
@@ -80,7 +81,7 @@ export default async function DetalleLugarPage({ params }: { params: Params }) {
               )}
               {lugar.categoria && (
                 <span className="flex items-center gap-1">
-                  <Tag className="size-4" /> {lugar.categoria.icono} {lugar.categoria.nombre}
+                  <CategoryIcon nombre={lugar.categoria.nombre} className="size-4" /> {lugar.categoria.nombre}
                 </span>
               )}
               {agg._count > 0 && (
@@ -111,9 +112,9 @@ export default async function DetalleLugarPage({ params }: { params: Params }) {
               </div>
               <Link
                 href={`/mapa?lugar=${lugar.id}`}
-                className="mt-3 inline-block text-sm font-medium text-brand hover:underline"
+                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
               >
-                Ver en el mapa completo →
+                Ver en el mapa completo <ArrowRight className="size-4" />
               </Link>
             </section>
           )}

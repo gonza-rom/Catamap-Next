@@ -48,7 +48,7 @@ export function PerfilTabs(props: {
 
   return (
     <Tabs defaultValue="info" className="mt-6">
-      <TabsList className="flex-wrap">
+      <TabsList className="w-full max-w-full justify-start gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <TabsTrigger value="info">Mi información</TabsTrigger>
         <TabsTrigger value="favoritos">Favoritos ({props.favoritos.length})</TabsTrigger>
         <TabsTrigger value="resenas">Reseñas ({props.resenas.length})</TabsTrigger>

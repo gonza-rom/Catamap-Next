@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { Logo } from "./logo";
 import { UserMenu, type SessionInfo } from "./user-menu";
 import { NavLinks } from "./nav-links";
+import { MobileMenu } from "./mobile-menu";
 
 export async function Navbar() {
   const session = await getSessionUser();
@@ -18,8 +19,11 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <Logo />
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
+        <div className="flex items-center gap-1">
+          <MobileMenu session={info} />
+          <Logo />
+        </div>
         <NavLinks />
         <div className="flex items-center gap-2">
           <Link

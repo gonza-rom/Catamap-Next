@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Check, Loader2, MapPin } from "lucide-react";
+import { CategoryIcon } from "@/components/category-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -110,6 +111,7 @@ export function SugerirLugarForm({
             <SelectContent>
               {categorias.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
+                  <CategoryIcon nombre={c.nombre} className="mr-1 inline size-4 text-brand" />
                   {c.nombre}
                 </SelectItem>
               ))}

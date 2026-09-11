@@ -137,17 +137,18 @@ export async function adminEliminarComentario(id: number): Promise<Res> {
 }
 
 // ── Categorías ───────────────────────────────────────────
+// El ícono ya no se edita a mano: se deriva del nombre en toda la UI (ver lib/category-icons.tsx).
+// La columna `icono` se mantiene por compatibilidad con el dato original pero no se usa para mostrar.
 const categoriaSchema = z.object({
   nombre: z.string().trim().min(1),
   descripcion: z.string().trim().optional(),
-  icono: z.string().trim().min(1),
 });
 
 export async function adminCrearCategoria(input: unknown): Promise<Res> {
   await requireAdmin();
   const parsed = categoriaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  await prisma.categoria.create({ data: parsed.data });
+  await prisma.categoria.create({ data: { ...parsed.data, icono: parsed.data.nombre.slice(0, 16) } });
   revalidatePath("/admin/categorias");
   return { ok: true };
 }

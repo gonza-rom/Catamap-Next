@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { lugarImg } from "@/lib/images";
+import { CategoryIcon } from "@/components/category-icon";
 import { FavoritoButton } from "./favorito-button";
 
 export type LugarCardData = {
@@ -10,7 +11,6 @@ export type LugarCardData = {
   descripcion: string | null;
   imagen: string | null;
   categoria: string | null;
-  icono: string | null;
   departamento: string | null;
 };
 
@@ -34,8 +34,8 @@ export function LugarCard({
           className="object-cover transition duration-300 group-hover:scale-105"
         />
         {lugar.categoria && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-medium text-white">
-            {lugar.icono} {lugar.categoria}
+          <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-xs font-medium text-white">
+            <CategoryIcon nombre={lugar.categoria} className="size-3.5" /> {lugar.categoria}
           </span>
         )}
         <FavoritoButton

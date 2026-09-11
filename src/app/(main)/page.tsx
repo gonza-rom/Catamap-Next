@@ -138,7 +138,6 @@ export default async function HomePage() {
                 descripcion: l.descripcion,
                 imagen: l.imagen,
                 categoria: l.categoria?.nombre ?? null,
-                icono: l.categoria?.icono ?? null,
                 departamento: l.departamento?.nombre ?? null,
               }}
             />

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { CategoryIcon } from "@/components/category-icon";
 import {
   Select,
   SelectContent,
@@ -66,7 +67,9 @@ export function LugaresFiltros({ categorias, departamentos, current }: Props) {
           <SelectItem value={ALL}>Todas las categorías</SelectItem>
           {categorias.map((c) => (
             <SelectItem key={c.id} value={String(c.id)}>
-              {c.nombre}
+              <span className="flex items-center gap-2">
+                <CategoryIcon nombre={c.nombre} className="size-4 text-brand" /> {c.nombre}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

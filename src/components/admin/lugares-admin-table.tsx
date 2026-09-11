@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Heart, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -98,7 +98,11 @@ export function LugaresAdminTable({
               <th className="p-3">Categoría</th>
               <th className="p-3">Departamento</th>
               <th className="p-3">Estado</th>
-              <th className="p-3">♥ / 💬</th>
+              <th className="p-3">
+                <span className="flex items-center gap-2">
+                  <Heart className="size-3.5" /> / <MessageSquare className="size-3.5" />
+                </span>
+              </th>
               <th className="p-3 text-right">Acciones</th>
             </tr>
           </thead>

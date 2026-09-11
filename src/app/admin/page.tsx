@@ -1,4 +1,4 @@
-import { Users, MapPin, Inbox, MessageSquare } from "lucide-react";
+import { Users, User, MapPin, Inbox, MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fechaHora } from "@/lib/format";
 
@@ -41,7 +41,7 @@ export default async function AdminDashboard() {
     .sort((a, b) => +new Date(b.fecha) - +new Date(a.fecha))
     .slice(0, 10);
 
-  const iconos: Record<string, string> = { usuario: "👤", lugar: "📍", comentario: "💬" };
+  const iconos = { usuario: User, lugar: MapPin, comentario: MessageSquare } as const;
 
   return (
     <div className="space-y-6">
@@ -56,13 +56,16 @@ export default async function AdminDashboard() {
         <div className="rounded-2xl border bg-card p-5">
           <h2 className="mb-3 font-heading font-semibold">Actividad reciente</h2>
           <ul className="space-y-2">
-            {actividad.map((a, i) => (
-              <li key={i} className="flex items-center gap-2 border-b pb-2 text-sm last:border-0">
-                <span>{iconos[a.tipo]}</span>
-                <span className="flex-1">{a.desc}</span>
-                <span className="text-xs text-muted-foreground">{fechaHora(a.fecha)}</span>
-              </li>
-            ))}
+            {actividad.map((a, i) => {
+              const Icon = iconos[a.tipo as keyof typeof iconos];
+              return (
+                <li key={i} className="flex items-center gap-2 border-b pb-2 text-sm last:border-0">
+                  <Icon className="size-4 shrink-0 text-admin" />
+                  <span className="flex-1">{a.desc}</span>
+                  <span className="text-xs text-muted-foreground">{fechaHora(a.fecha)}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
         <div className="rounded-2xl border bg-card p-5">

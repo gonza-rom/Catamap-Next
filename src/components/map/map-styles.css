@@ -1,5 +1,51 @@
 /* Estilos del mapa Leaflet — importados por los componentes cliente del mapa. */
 
+/* Pin de categoría: círculo con ícono + colita, estilo Google Maps */
+.cm-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+.cm-marker-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+.cm-marker-tail {
+  width: 0;
+  height: 0;
+  margin-top: -3px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #e07b39;
+}
+
+.cm-simple-pin {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+.cm-simple-pin svg {
+  fill: #fff;
+}
+
+/* Burbujas de agrupación (clustering) */
+.cm-cluster-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #e07b39, #854203);
+  color: #fff;
+  font-weight: 700;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 .cm-user-dot {
   position: relative;
   display: block;
@@ -53,14 +99,30 @@
 }
 .cm-popup-actions a,
 .cm-popup-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   flex: 1;
   text-align: center;
   border-radius: 9999px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   border: 0;
+  text-decoration: none;
 }
 .cm-btn-route { background: #4caf50; color: #fff; }
 .cm-btn-detail { background: #e07b39; color: #fff; }
+
+.cm-popup-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  color: #333;
+  text-decoration: none;
+}
+.cm-popup-list-item:hover { color: #e07b39; }
+.cm-popup-list-item svg { flex-shrink: 0; }

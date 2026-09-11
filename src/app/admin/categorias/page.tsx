@@ -15,7 +15,6 @@ export default async function AdminCategoriasPage() {
           id: c.idCategoria,
           nombre: c.nombre,
           descripcion: c.descripcion,
-          icono: c.icono,
           totalLugares: c._count.lugares,
         }))}
       />

@@ -1,24 +1,64 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import L from "./leaflet-global"; // debe importarse antes que "leaflet.markercluster"
+import "leaflet.markercluster";
 import "./map-styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import L from "leaflet";
 import { toast } from "sonner";
-import { Search, SlidersHorizontal, LocateFixed, Star, X, ArrowLeft } from "lucide-react";
+import {
+  Search,
+  SlidersHorizontal,
+  LocateFixed,
+  Star,
+  X,
+  ArrowLeft,
+  Rows3,
+  Navigation,
+  Navigation2,
+  XCircle,
+  Info,
+} from "lucide-react";
 import Link from "next/link";
-import { emojiIcon, userIcon, favIcon } from "./icons";
+import { categoryPin, userIcon, favIcon } from "./icons";
+import { categoryIconSvg, iconToSvg } from "@/lib/icon-svg";
+import { CategoryIcon } from "@/components/category-icon";
 import type { MapaLugar } from "@/lib/data/mapa";
 import { lugarImg } from "@/lib/images";
 import { cn } from "@/lib/utils";
+import { loadMapState, saveMapState } from "./map-state";
 
-const BASE_LAYERS: Record<string, string> = {
-  "🗺️ Rutas": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  "🌍 Moderno": "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  "🏔️ Terreno": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-  "⚪ Blanco": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-};
+const TILE_LAYERS: { name: string; url: string }[] = [
+  { name: "Calles", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png" },
+  { name: "Moderno", url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" },
+  {
+    name: "Terreno",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+  },
+  { name: "Claro", url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" },
+];
+
+const railLabelClass = "text-[9px] font-medium leading-none sm:text-[10px]";
+
+function railBtnClass(active?: boolean) {
+  return cn(
+    "flex w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-white hover:bg-white/15 sm:w-full sm:py-2",
+    active && "bg-white/20",
+  );
+}
+
+function haversine(a: L.LatLng, bLat: number, bLng: number) {
+  const R = 6371000;
+  const dLat = ((bLat - a.lat) * Math.PI) / 180;
+  const dLng = ((bLng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
 
 type Props = {
   lugares: MapaLugar[];
@@ -29,11 +69,17 @@ type Props = {
 export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersByCat = useRef<Map<string, L.Marker[]>>(new Map());
   const activeCats = useRef<Set<string>>(new Set());
   const userLatLng = useRef<L.LatLng | null>(null);
+  const userMarker = useRef<L.Marker | null>(null);
   const routeLayer = useRef<L.GeoJSON | null>(null);
   const favLayer = useRef<L.LayerGroup | null>(null);
+  const navTarget = useRef<{ lat: number; lng: number } | null>(null);
+  const watchId = useRef<number | null>(null);
+  const showFavsRef = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const router = useRouter();
   const params = useSearchParams();
@@ -42,24 +88,66 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
   const [panel, setPanel] = useState<"cats" | "search" | null>(null);
   const [query, setQuery] = useState("");
   const [showFavs, setShowFavs] = useState(false);
+  const [nav, setNav] = useState<{ distancia: number; duracion: number } | null>(null);
+  const [, forceRerender] = useState(0);
 
   const categorias = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of lugares) if (!m.has(l.categoria)) m.set(l.categoria, l.icono);
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const set = new Set<string>();
+    for (const l of lugares) set.add(l.categoria);
+    return [...set].sort((a, b) => a.localeCompare(b));
   }, [lugares]);
+
+  function persist() {
+    const map = mapRef.current;
+    if (!map) return;
+    const c = map.getCenter();
+    saveMapState({
+      cats: [...activeCats.current],
+      favs: showFavsRef.current,
+      center: [c.lat, c.lng],
+      zoom: map.getZoom(),
+    });
+  }
 
   // ── init map ──
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
+    const saved = loadMapState();
     const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false }).setView(
-      [-28.47, -65.79],
-      7,
+      saved?.center ?? [-28.47, -65.79],
+      saved?.zoom ?? 7,
     );
     mapRef.current = map;
     L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer(BASE_LAYERS["🗺️ Rutas"], { maxZoom: 18 }).addTo(map);
+
+    const baseLayers: Record<string, L.TileLayer> = {};
+    TILE_LAYERS.forEach((t, i) => {
+      const layer = L.tileLayer(t.url, { maxZoom: 18 });
+      baseLayers[t.name] = layer;
+      if (i === 0) layer.addTo(map);
+    });
+    L.control.layers(baseLayers, undefined, { position: "topright" }).addTo(map);
     L.control.attribution({ position: "bottomleft", prefix: false }).addAttribution("© OpenStreetMap").addTo(map);
+
+    // agrupa marcadores cercanos en burbujas con contador — mucho más rápido y legible
+    // con miles de puntos que dibujarlos todos sueltos.
+    const cluster = L.markerClusterGroup({
+      maxClusterRadius: 55,
+      disableClusteringAtZoom: 16,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: (c) => {
+        const count = c.getChildCount();
+        const size = count < 10 ? 34 : count < 50 ? 40 : count < 200 ? 48 : 56;
+        return L.divIcon({
+          html: `<span class="cm-cluster-badge" style="width:${size}px;height:${size}px;font-size:${size < 40 ? 12 : 14}px">${count}</span>`,
+          className: "cm-cluster",
+          iconSize: L.point(size, size),
+        });
+      },
+    });
+    cluster.addTo(map);
+    clusterRef.current = cluster;
 
     // capa de departamentos
     fetch("/data/departamentos-catamarca.json")
@@ -77,7 +165,10 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
                 ? `<div class="cm-popup"><h4>${nombre}</h4><p>${del.length} lugares</p>` +
                   del
                     .slice(0, 40)
-                    .map((l) => `<a href="/lugares/${l.id}" style="display:block;padding:2px 0">${l.icono} ${l.nombre}</a>`)
+                    .map(
+                      (l) =>
+                        `<a href="/lugares/${l.id}" class="cm-popup-list-item">${categoryIconSvg(l.categoria, { size: 14 })}${escapeHtml(l.nombre)}</a>`,
+                    )
                     .join("") +
                   (del.length > 40 ? `<p>…y ${del.length - 40} más</p>` : "") +
                   `</div>`
@@ -87,16 +178,24 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
           },
         }).addTo(map);
         try {
-          map.fitBounds(layer.getBounds(), { padding: [20, 20] });
           map.setMaxBounds(layer.getBounds().pad(0.3));
-          map.setMinZoom(map.getBoundsZoom(layer.getBounds()));
+          map.setMinZoom(map.getBoundsZoom(layer.getBounds()) - 1);
+          if (!saved) map.fitBounds(layer.getBounds(), { padding: [20, 20] });
         } catch {}
       })
       .catch(() => {});
 
-    // marcadores por categoría (lazy: se crean pero no se agregan)
+    // marcadores por categoría (lazy: se crean pero no se agregan hasta activar la categoría).
+    // el ícono se arma una sola vez por categoría y se reutiliza en todos sus marcadores.
+    const iconByCat = new Map<string, L.DivIcon>();
     for (const l of lugares) {
-      const m = L.marker([l.lat, l.lng], { icon: emojiIcon(l.icono) }).bindPopup(popupHtml(l), {
+      let icon = iconByCat.get(l.categoria);
+      if (!icon) {
+        icon = categoryPin(l.categoria);
+        iconByCat.set(l.categoria, icon);
+      }
+      // el contenido del popup se arma recién al abrirlo (no en la carga inicial)
+      const m = L.marker([l.lat, l.lng], { icon }).bindPopup(() => popupHtml(l), {
         maxWidth: 260,
         className: "cm-popup-wrapper",
       });
@@ -105,23 +204,43 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
       markersByCat.current.set(l.categoria, arr);
     }
 
+    // restaurar filtros/vista guardados de una visita anterior
+    if (saved?.cats?.length) {
+      for (const cat of saved.cats) {
+        activeCats.current.add(cat);
+        (markersByCat.current.get(cat) ?? []).forEach((mk) => cluster.addLayer(mk));
+      }
+      forceRerender((n) => n + 1);
+    }
+    if (saved?.favs) setTimeout(() => toggleFavsEnMapa(), 0);
+
     // delegación de clicks en popups
     map.on("popupopen", (e) => {
       const node = (e.popup as L.Popup).getElement();
       node?.querySelector<HTMLButtonElement>(".cm-btn-route")?.addEventListener("click", (ev) => {
         const t = ev.currentTarget as HTMLElement;
-        trazarRuta(Number(t.dataset.lat), Number(t.dataset.lng));
+        iniciarNavegacion(Number(t.dataset.lat), Number(t.dataset.lng));
       });
+    });
+
+    map.on("moveend", () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(persist, 400);
     });
 
     // geolocalización
     map.locate({ setView: false, maxZoom: 14 });
     map.on("locationfound", (e) => {
       userLatLng.current = e.latlng;
-      L.marker(e.latlng, { icon: userIcon() }).addTo(map).bindPopup("Estás acá");
+      if (userMarker.current) userMarker.current.setLatLng(e.latlng);
+      else
+        userMarker.current = L.marker(e.latlng, { icon: userIcon(), zIndexOffset: 1000 })
+          .addTo(map)
+          .bindPopup("Estás acá");
     });
 
     return () => {
+      if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
       map.remove();
       mapRef.current = null;
     };
@@ -135,82 +254,123 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
     const l = lugares.find((x) => x.id === Number(id));
     if (!l) return;
     const map = mapRef.current;
-    // asegurar que la categoría esté activa
     if (!activeCats.current.has(l.categoria)) toggleCat(l.categoria, true);
     map.flyTo([l.lat, l.lng], 15, { duration: 1 });
-    const tmp = L.marker([l.lat, l.lng], { icon: emojiIcon(l.icono) }).addTo(map).bindPopup(popupHtml(l)).openPopup();
+    const tmp = L.marker([l.lat, l.lng], { icon: categoryPin(l.categoria) }).addTo(map).bindPopup(popupHtml(l)).openPopup();
     setTimeout(() => map.removeLayer(tmp), 20000);
     router.replace("/mapa");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, lugares]);
 
   function toggleCat(cat: string, force?: boolean) {
-    const map = mapRef.current;
-    if (!map) return;
+    const cluster = clusterRef.current;
+    if (!cluster) return;
     const on = force ?? !activeCats.current.has(cat);
     const markers = markersByCat.current.get(cat) ?? [];
     if (on) {
       activeCats.current.add(cat);
-      markers.forEach((m) => m.addTo(map));
+      markers.forEach((m) => cluster.addLayer(m));
     } else {
       activeCats.current.delete(cat);
-      markers.forEach((m) => map.removeLayer(m));
+      markers.forEach((m) => cluster.removeLayer(m));
     }
-    setPanel((p) => p); // re-render checkboxes
     forceRerender((n) => n + 1);
+    persist();
   }
 
-  const [, forceRerender] = useState(0);
-
   function limpiarFiltros() {
-    const map = mapRef.current;
-    if (!map) return;
+    const cluster = clusterRef.current;
+    if (!cluster) return;
     for (const cat of [...activeCats.current]) {
-      (markersByCat.current.get(cat) ?? []).forEach((m) => map.removeLayer(m));
+      (markersByCat.current.get(cat) ?? []).forEach((m) => cluster.removeLayer(m));
     }
     activeCats.current.clear();
     forceRerender((n) => n + 1);
+    persist();
   }
 
-  async function trazarRuta(lat: number, lng: number) {
-    const map = mapRef.current;
-    if (!map) return;
+  // ── navegación "estilo Google Maps": calcula la ruta y sigue al usuario ──
+  function iniciarNavegacion(lat: number, lng: number) {
     if (!userLatLng.current) {
       toast.error("Activá tu ubicación para trazar la ruta");
       return;
     }
-    if (routeLayer.current) {
-      map.removeLayer(routeLayer.current);
-      routeLayer.current = null;
+    if (navTarget.current && navTarget.current.lat === lat && navTarget.current.lng === lng) {
+      detenerNavegacion();
       return;
     }
+    detenerNavegacion();
+    navTarget.current = { lat, lng };
+    calcularRuta(lat, lng);
+  }
+
+  async function calcularRuta(lat: number, lng: number) {
+    const map = mapRef.current;
+    if (!map || !userLatLng.current) return;
     const id = toast.loading("Calculando ruta…");
     try {
       const r = await fetch("/api/ruta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: [userLatLng.current.lng, userLatLng.current.lat],
-          to: [lng, lat],
-        }),
+        body: JSON.stringify({ from: [userLatLng.current.lng, userLatLng.current.lat], to: [lng, lat] }),
       });
       const data = await r.json();
       if (!r.ok || !data.geometry) throw new Error(data.error || "Error");
+      if (routeLayer.current) map.removeLayer(routeLayer.current);
       routeLayer.current = L.geoJSON(data.geometry, { style: { color: "#4CAF50", weight: 5 } }).addTo(map);
-      map.fitBounds(routeLayer.current.getBounds(), { padding: [40, 40] });
-      toast.success(
-        `Ruta: ${(data.distancia / 1000).toFixed(1)} km · ${Math.round(data.duracion / 60)} min`,
-        { id },
-      );
+      setNav({ distancia: data.distancia, duracion: data.duracion });
+      map.fitBounds(routeLayer.current.getBounds(), { padding: [60, 120] });
+      toast.success("Ruta calculada — siguiendo tu ubicación", { id });
+      setTimeout(iniciarSeguimientoGPS, 1000);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo calcular la ruta", { id });
+      navTarget.current = null;
     }
+  }
+
+  function iniciarSeguimientoGPS() {
+    const map = mapRef.current;
+    if (!map || !navigator.geolocation) return;
+    if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
+    watchId.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+        userLatLng.current = ll;
+        if (userMarker.current) userMarker.current.setLatLng(ll);
+        else userMarker.current = L.marker(ll, { icon: userIcon(), zIndexOffset: 1000 }).addTo(map);
+        map.panTo(ll, { animate: true, duration: 0.5 });
+        if (map.getZoom() < 16) map.setZoom(17, { animate: true });
+        if (navTarget.current) {
+          const dist = haversine(ll, navTarget.current.lat, navTarget.current.lng);
+          setNav((n) => (n ? { ...n, distancia: dist } : n));
+          if (dist < 40) {
+            toast.success("¡Llegaste a destino!");
+            detenerNavegacion();
+          }
+        }
+      },
+      () => toast.error("No se pudo seguir tu ubicación en vivo"),
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
+    );
+  }
+
+  function detenerNavegacion() {
+    if (watchId.current != null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    if (routeLayer.current) {
+      mapRef.current?.removeLayer(routeLayer.current);
+      routeLayer.current = null;
+    }
+    navTarget.current = null;
+    setNav(null);
   }
 
   function irAMiUbicacion() {
     const map = mapRef.current;
     if (!map) return;
-    if (userLatLng.current) map.flyTo(userLatLng.current, 14);
+    if (userLatLng.current) map.flyTo(userLatLng.current, 15);
     else map.locate({ setView: true, maxZoom: 14 });
   }
 
@@ -221,6 +381,8 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
       map.removeLayer(favLayer.current);
       favLayer.current = null;
       setShowFavs(false);
+      showFavsRef.current = false;
+      persist();
       return;
     }
     const favs = lugares.filter((l) => favSet.has(l.id));
@@ -228,11 +390,13 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
       toast.info("No tenés favoritos todavía");
       return;
     }
-    const group = L.layerGroup(
-      favs.map((l) => L.marker([l.lat, l.lng], { icon: favIcon() }).bindPopup(popupHtml(l))),
-    ).addTo(map);
+    const group = L.layerGroup(favs.map((l) => L.marker([l.lat, l.lng], { icon: favIcon() }).bindPopup(popupHtml(l)))).addTo(
+      map,
+    );
     favLayer.current = group;
     setShowFavs(true);
+    showFavsRef.current = true;
+    persist();
     map.flyToBounds(L.latLngBounds(favs.map((l) => [l.lat, l.lng])), { padding: [50, 50] });
   }
 
@@ -261,52 +425,83 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
 
-      {/* rail izquierdo */}
-      <div className="absolute left-0 top-0 z-[1000] flex h-full flex-col gap-1 bg-brand/95 p-2 text-white shadow-lg">
-        <Link href="/" title="Inicio" className="grid size-11 place-items-center rounded-lg hover:bg-white/15">
+      {/* barra de navegación activa (estilo Google Maps) */}
+      {nav && (
+        <div className="absolute inset-x-2 bottom-[4.5rem] z-[1000] flex items-center gap-3 rounded-2xl bg-white p-3 shadow-2xl sm:inset-x-auto sm:bottom-4 sm:left-20 sm:right-4 sm:max-w-sm">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-green-600 text-white">
+            <Navigation2 className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold leading-none">
+              {nav.distancia >= 1000 ? `${(nav.distancia / 1000).toFixed(1)} km` : `${Math.round(nav.distancia)} m`}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              ~{Math.max(1, Math.round(nav.duracion / 60))} min · siguiendo tu ubicación
+            </p>
+          </div>
+          <button
+            onClick={detenerNavegacion}
+            title="Salir de la navegación"
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-red-500 text-white hover:bg-red-600"
+          >
+            <XCircle className="size-5" />
+          </button>
+        </div>
+      )}
+
+      {/* rail de accesos: cada botón muestra ícono + etiqueta para que se entienda sin tocar */}
+      <div
+        className={cn(
+          "absolute inset-x-0 bottom-0 z-[1000] flex h-16 items-stretch justify-around gap-0.5 overflow-x-auto bg-brand/95 px-1 text-white shadow-lg",
+          "[padding-bottom:env(safe-area-inset-bottom)]",
+          "sm:inset-x-auto sm:inset-y-0 sm:h-full sm:w-16 sm:flex-col sm:items-center sm:justify-start sm:gap-1 sm:overflow-visible sm:p-2 sm:[padding-bottom:0.5rem]",
+        )}
+      >
+        <Link href="/" className={railBtnClass()}>
           <ArrowLeft className="size-5" />
+          <span className={railLabelClass}>Inicio</span>
         </Link>
         <button
-          title="Buscar"
           onClick={() => setPanel((p) => (p === "search" ? null : "search"))}
-          className={cn("grid size-11 place-items-center rounded-lg hover:bg-white/15", panel === "search" && "bg-white/20")}
+          className={railBtnClass(panel === "search")}
         >
           <Search className="size-5" />
+          <span className={railLabelClass}>Buscar</span>
         </button>
-        <button
-          title="Categorías"
-          onClick={() => setPanel((p) => (p === "cats" ? null : "cats"))}
-          className={cn("grid size-11 place-items-center rounded-lg hover:bg-white/15", panel === "cats" && "bg-white/20")}
-        >
+        <button onClick={() => setPanel((p) => (p === "cats" ? null : "cats"))} className={railBtnClass(panel === "cats")}>
           <SlidersHorizontal className="size-5" />
+          <span className={railLabelClass}>Filtros</span>
         </button>
         {isAuthenticated && (
-          <button
-            title="Mis favoritos en el mapa"
-            onClick={toggleFavsEnMapa}
-            className={cn("grid size-11 place-items-center rounded-lg hover:bg-white/15", showFavs && "bg-white/20")}
-          >
+          <button onClick={toggleFavsEnMapa} className={railBtnClass(showFavs)}>
             <Star className={cn("size-5", showFavs && "fill-current")} />
+            <span className={railLabelClass}>Favoritos</span>
           </button>
         )}
-        <button
-          title="Mi ubicación"
-          onClick={irAMiUbicacion}
-          className="grid size-11 place-items-center rounded-lg hover:bg-white/15"
-        >
+        <button onClick={irAMiUbicacion} className={railBtnClass()}>
           <LocateFixed className="size-5" />
+          <span className={railLabelClass}>Ubicación</span>
         </button>
-        <Link href="/lugares" title="Listado" className="grid size-11 place-items-center rounded-lg text-xs hover:bg-white/15">
-          Lista
+        <Link href="/lugares" className={railBtnClass()}>
+          <Rows3 className="size-5" />
+          <span className={railLabelClass}>Listado</span>
         </Link>
       </div>
 
-      {/* panel */}
+      {/* panel: hoja inferior en mobile, panel lateral en desktop */}
       {panel && (
-        <div className="absolute left-16 top-0 z-[1000] flex h-full w-80 flex-col bg-white shadow-2xl">
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-16 z-[1000] flex max-h-[60dvh] flex-col rounded-t-2xl bg-white shadow-2xl",
+            "sm:inset-x-auto sm:inset-y-0 sm:bottom-auto sm:left-16 sm:top-0 sm:h-full sm:max-h-none sm:w-80 sm:rounded-none",
+          )}
+        >
+          <div className="flex justify-center pt-1.5 sm:hidden">
+            <span className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+          </div>
           <div className="flex items-center justify-between border-b bg-brand px-4 py-3 text-white">
             <h2 className="font-semibold">{panel === "cats" ? "Filtrar categorías" : "Buscar lugares"}</h2>
-            <button onClick={() => setPanel(null)}>
+            <button onClick={() => setPanel(null)} aria-label="Cerrar">
               <X className="size-5" />
             </button>
           </div>
@@ -314,15 +509,15 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
           {panel === "cats" ? (
             <>
               <div className="flex-1 overflow-y-auto p-3">
-                {categorias.map(([cat, icono]) => (
-                  <label key={cat} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 hover:bg-accent">
+                {categorias.map((cat) => (
+                  <label key={cat} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent">
                     <input
                       type="checkbox"
                       checked={activeCats.current.has(cat)}
                       onChange={() => toggleCat(cat)}
                       className="accent-[var(--brand)]"
                     />
-                    <span className="text-lg">{icono}</span>
+                    <CategoryIcon nombre={cat} className="size-5 shrink-0 text-brand" />
                     <span className="text-sm">{cat}</span>
                     <span className="ml-auto text-xs text-muted-foreground">
                       {markersByCat.current.get(cat)?.length ?? 0}
@@ -330,8 +525,11 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
                   </label>
                 ))}
               </div>
-              <button onClick={limpiarFiltros} className="border-t p-3 text-sm font-medium text-brand hover:bg-accent">
-                🔄 Limpiar filtros
+              <button
+                onClick={limpiarFiltros}
+                className="flex items-center justify-center gap-1.5 border-t p-3 text-sm font-medium text-brand hover:bg-accent"
+              >
+                <X className="size-4" /> Limpiar filtros
               </button>
             </>
           ) : (
@@ -352,7 +550,7 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
                     onClick={() => irALugar(l)}
                     className="flex w-full items-start gap-2 border-b px-3 py-2 text-left hover:bg-accent"
                   >
-                    <span className="text-lg">{l.icono}</span>
+                    <CategoryIcon nombre={l.categoria} className="mt-0.5 size-5 shrink-0 text-brand" />
                     <span>
                       <span className="block text-sm font-medium">{l.nombre}</span>
                       <span className="block text-xs text-muted-foreground">
@@ -375,13 +573,15 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
 
 function popupHtml(l: MapaLugar) {
   const img = lugarImg(l.imagen);
+  const routeSvg = iconToSvg(Navigation, { size: 14, color: "#fff" });
+  const infoSvg = iconToSvg(Info, { size: 14, color: "#fff" });
   return `<div class="cm-popup">
     <img class="cm-popup-img" src="${img}" alt="" onerror="this.style.display='none'"/>
     <h4>${escapeHtml(l.nombre)}</h4>
     ${l.descripcion ? `<p>${escapeHtml(l.descripcion.slice(0, 120))}</p>` : ""}
     <div class="cm-popup-actions">
-      <button class="cm-btn-route" data-lat="${l.lat}" data-lng="${l.lng}">🧭 Ir aquí</button>
-      <a class="cm-btn-detail" href="/lugares/${l.id}">ℹ️ Ver detalle</a>
+      <button class="cm-btn-route" data-lat="${l.lat}" data-lng="${l.lng}">${routeSvg}Ir aquí</button>
+      <a class="cm-btn-detail" href="/lugares/${l.id}">${infoSvg}Ver detalle</a>
     </div>
   </div>`;
 }

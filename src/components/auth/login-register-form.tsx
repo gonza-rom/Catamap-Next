@@ -2,22 +2,19 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginAction, registerAction } from "@/lib/actions/auth";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
+import { cn } from "@/lib/utils";
 
-function useCaptcha() {
-  const [a, setA] = useState(() => 1 + Math.floor(Math.random() * 9));
-  const [b, setB] = useState(() => 1 + Math.floor(Math.random() * 9));
-  const regenerate = () => {
-    setA(1 + Math.floor(Math.random() * 9));
-    setB(1 + Math.floor(Math.random() * 9));
-  };
-  return { question: `¿Cuánto es ${a} + ${b}?`, answer: a + b, regenerate };
-}
+const CUENTAS_PRUEBA = [
+  { email: "admin@catamap.com", rol: "admin" },
+  { email: "m@gmail.com", rol: "usuario" },
+  { email: "manuel@gmail.com", rol: "usuario" },
+];
 
 type Props = {
   mode: "login" | "register";
@@ -29,17 +26,13 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
-  const captcha = useCaptcha();
+  const [showCuentas, setShowCuentas] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const captchaValue = Number(fd.get("captcha"));
-    if (captchaValue !== captcha.answer) {
-      toast.error("Respuesta del captcha incorrecta");
-      captcha.regenerate();
-      return;
-    }
 
     setLoading(true);
     try {
@@ -53,7 +46,6 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
         const res = await loginAction(parsed.data);
         if (!res.ok) {
           toast.error(res.error);
-          captcha.regenerate();
           return;
         }
         toast.success("¡Bienvenido de vuelta!");
@@ -73,7 +65,6 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
         const res = await registerAction(parsed.data);
         if (!res.ok) {
           toast.error(res.error);
-          captcha.regenerate();
           return;
         }
         toast.success("¡Cuenta creada! Ya estás dentro.");
@@ -95,7 +86,15 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
 
       <div className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
 
       <div className="space-y-1.5">
@@ -107,6 +106,8 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
             type={showPw ? "text" : "password"}
             required
             autoComplete={mode === "login" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
           <button
             type="button"
@@ -147,30 +148,44 @@ export function LoginRegisterForm({ mode, onModeChange, onSuccess }: Props) {
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="captcha">{captcha.question}</Label>
-        <Input id="captcha" name="captcha" type="number" required inputMode="numeric" />
-      </div>
-
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />}
         {mode === "login" ? "Ingresar" : "Registrarme"}
       </Button>
 
-      <div className="relative py-1 text-center text-xs text-muted-foreground">
-        <span className="relative z-10 bg-background px-2">o continuá con</span>
-        <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {["Google", "Facebook"].map((p) => (
-          <Button key={p} type="button" variant="outline" disabled className="relative">
-            {p}
-            <span className="absolute -top-2 -right-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
-              Próximamente
-            </span>
-          </Button>
-        ))}
-      </div>
+      {mode === "login" && (
+        <div className="rounded-lg border bg-secondary/60 text-xs">
+          <button
+            type="button"
+            onClick={() => setShowCuentas((v) => !v)}
+            className="flex w-full items-center justify-between px-3 py-2 font-medium text-secondary-foreground"
+          >
+            Cuentas de prueba
+            <ChevronDown className={cn("size-3.5 transition-transform", showCuentas && "rotate-180")} />
+          </button>
+          {showCuentas && (
+            <div className="space-y-1 px-3 pb-2.5">
+              {CUENTAS_PRUEBA.map((c) => (
+                <button
+                  key={c.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(c.email);
+                    setPassword("Catamap123!");
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-accent"
+                >
+                  <span>{c.email}</span>
+                  <span className="text-muted-foreground capitalize">{c.rol}</span>
+                </button>
+              ))}
+              <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+                Contraseña para todas: <code>Catamap123!</code> — tocá una para autocompletar.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         {mode === "login" ? (

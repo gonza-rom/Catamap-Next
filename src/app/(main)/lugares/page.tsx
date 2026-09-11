@@ -65,7 +65,6 @@ export default async function LugaresPage({ searchParams }: { searchParams: SP }
                 descripcion: l.descripcion,
                 imagen: l.imagen,
                 categoria: l.categoria?.nombre ?? null,
-                icono: l.categoria?.icono ?? null,
                 departamento: l.departamento?.nombre ?? null,
               }}
             />
