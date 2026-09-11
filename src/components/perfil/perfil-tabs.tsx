@@ -72,7 +72,13 @@ export function PerfilTabs(props: {
             {props.favoritos.map((f) => (
               <div key={f.idLugar} className="overflow-hidden rounded-xl border">
                 <Link href={`/lugares/${f.idLugar}`} className="relative block aspect-video">
-                  <Image src={lugarImg(f.imagen)} alt={f.nombre} fill className="object-cover" />
+                  <Image
+                    src={lugarImg(f.imagen)}
+                    alt={f.nombre}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover"
+                  />
                 </Link>
                 <div className="space-y-1 p-3">
                   <p className="text-xs text-muted-foreground">

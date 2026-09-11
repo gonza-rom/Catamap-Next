@@ -48,6 +48,7 @@ export default async function HomePage() {
           alt="Paisajes de Catamarca"
           fill
           priority
+          sizes="100vw"
           className="-z-10 object-cover brightness-[0.55]"
         />
         <div className="mx-auto max-w-4xl px-4 py-28 text-center text-white sm:py-36">
@@ -81,7 +82,13 @@ export default async function HomePage() {
       {/* Sobre */}
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 md:grid-cols-2">
         <div className="relative aspect-[4/3] overflow-hidden rounded-3xl">
-          <Image src="/img/about.jpg" alt="Sobre Catamap" fill className="object-cover" />
+          <Image
+            src="/img/about.jpg"
+            alt="Sobre Catamap"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">Sobre nosotros</p>
@@ -94,8 +101,20 @@ export default async function HomePage() {
             moderación lo revisa antes de publicarlo en el mapa.
           </p>
           <div className="mt-6 flex gap-3">
-            <Image src="/img/bicicta.jpg" alt="" width={140} height={100} className="rounded-xl object-cover" />
-            <Image src="/img/vistacta.jpg" alt="" width={140} height={100} className="rounded-xl object-cover" />
+            <Image
+              src="/img/bicicta.jpg"
+              alt=""
+              width={140}
+              height={100}
+              className="h-[100px] w-[140px] rounded-xl object-cover"
+            />
+            <Image
+              src="/img/vistacta.jpg"
+              alt=""
+              width={140}
+              height={100}
+              className="h-[100px] w-[140px] rounded-xl object-cover"
+            />
           </div>
         </div>
       </section>
@@ -166,7 +185,13 @@ export default async function HomePage() {
 
       {/* CTA */}
       <section className="relative isolate overflow-hidden py-20 text-white">
-        <Image src="/img/cuestaportezuelo.jpg" alt="" fill className="-z-10 object-cover brightness-[0.4]" />
+        <Image
+          src="/img/cuestaportezuelo.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="-z-10 object-cover brightness-[0.4]"
+        />
         <div className="mx-auto max-w-3xl px-4 text-center">
           <MapPinned className="mx-auto size-10 text-brand" />
           <h2 className="mt-4 font-heading text-3xl font-bold">¿Conocés un lugar que falta en el mapa?</h2>

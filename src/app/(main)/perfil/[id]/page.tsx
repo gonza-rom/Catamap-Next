@@ -175,7 +175,13 @@ export default async function PerfilPublicoPage({ params }: { params: Params }) 
               {favoritos.map((f) => (
                 <Link key={f.idLugar} href={`/lugares/${f.idLugar}`} className="overflow-hidden rounded-xl border">
                   <div className="relative aspect-video">
-                    <Image src={lugarImg(f.lugar.imagen)} alt={f.lugar.nombre} fill className="object-cover" />
+                    <Image
+                      src={lugarImg(f.lugar.imagen)}
+                      alt={f.lugar.nombre}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
                   </div>
                   <div className="p-2">
                     <p className="truncate text-sm font-medium">{f.lugar.nombre}</p>
@@ -201,7 +207,13 @@ export default async function PerfilPublicoPage({ params }: { params: Params }) 
               <div key={s.id} className="overflow-hidden rounded-xl border">
                 {s.imagen && (
                   <div className="relative aspect-video">
-                    <Image src={s.imagen} alt={s.nombre} fill className="object-cover" />
+                    <Image
+                      src={s.imagen}
+                      alt={s.nombre}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
                   </div>
                 )}
                 <div className="p-2">

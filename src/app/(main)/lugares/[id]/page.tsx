@@ -63,7 +63,7 @@ export default async function DetalleLugarPage({ params }: { params: Params }) {
     <div>
       {/* Hero */}
       <div className="relative h-[42vh] min-h-72 w-full">
-        <Image src={lugarImg(lugar.imagen)} alt={lugar.nombre} fill priority className="object-cover" />
+        <Image src={lugarImg(lugar.imagen)} alt={lugar.nombre} fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-black/10" />
         {session && (
           <div className="absolute right-4 top-4">

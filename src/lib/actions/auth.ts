@@ -5,10 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function loginAction(input: unknown): Promise<ActionResult> {
+  // Generoso a propósito: no debe frenar a un salón lleno de gente entrando a la vez,
+  // solo un script probando contraseñas en loop.
+  const limited = await rateLimit("login", 40, 5 * 60 * 1000);
+  if (!limited.ok) {
+    return { ok: false, error: `Demasiados intentos. Probá de nuevo en ${limited.retryAfterSec}s.` };
+  }
+
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -33,6 +41,13 @@ export async function loginAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function registerAction(input: unknown): Promise<ActionResult> {
+  // Generoso a propósito: pensado para una presentación con mucha gente registrándose
+  // desde el mismo Wi-Fi (misma IP pública), no para limitar el uso normal.
+  const limited = await rateLimit("register", 60, 10 * 60 * 1000);
+  if (!limited.ok) {
+    return { ok: false, error: `Demasiados registros seguidos. Probá de nuevo en ${limited.retryAfterSec}s.` };
+  }
+
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { nombre, email, password } = parsed.data;

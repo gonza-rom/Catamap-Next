@@ -52,7 +52,13 @@ export function SugerenciasAdminTable({ estado, sugerencias }: { estado: string;
           {sugerencias.map((s) => (
             <div key={s.id} className="overflow-hidden rounded-xl border bg-card">
               <div className="relative aspect-video bg-muted">
-                <Image src={lugarImg(s.imagen)} alt={s.nombre} fill className="object-cover" />
+                <Image
+                  src={lugarImg(s.imagen)}
+                  alt={s.nombre}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
               </div>
               <div className="space-y-1 p-3">
                 <p className="font-medium">{s.nombre}</p>
