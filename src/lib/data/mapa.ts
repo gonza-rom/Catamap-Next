@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export type MapaLugar = {
@@ -12,7 +13,7 @@ export type MapaLugar = {
   departamento: string;
 };
 
-export async function getMapaLugares(): Promise<MapaLugar[]> {
+async function fetchMapaLugares(): Promise<MapaLugar[]> {
   const lugares = await prisma.lugar.findMany({
     where: { estado: "aprobado", lat: { not: null }, lng: { not: null } },
     select: {
@@ -40,3 +41,10 @@ export async function getMapaLugares(): Promise<MapaLugar[]> {
     departamento: (l.departamento?.nombre ?? "DESCONOCIDO").toUpperCase(),
   }));
 }
+
+/** Los ~1400 lugares del mapa. Es la consulta más pesada del sitio — se cachea 2 min
+ *  (se invalida antes si se aprueba/edita un lugar desde el admin). */
+export const getMapaLugares = unstable_cache(fetchMapaLugares, ["mapa-lugares"], {
+  tags: ["lugares"],
+  revalidate: 120,
+});

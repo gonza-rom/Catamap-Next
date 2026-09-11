@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma";
 
@@ -10,7 +11,7 @@ export type LugaresFilter = {
   page?: number;
 };
 
-export async function getLugaresPage(filter: LugaresFilter) {
+async function fetchLugaresPage(filter: LugaresFilter) {
   const page = Math.max(1, filter.page ?? 1);
   const where: Prisma.LugarWhereInput = { estado: "aprobado" };
 
@@ -23,7 +24,14 @@ export async function getLugaresPage(filter: LugaresFilter) {
     prisma.lugar.count({ where }),
     prisma.lugar.findMany({
       where,
-      include: { categoria: true, departamento: true },
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        imagen: true,
+        categoria: { select: { nombre: true } },
+        departamento: { select: { nombre: true } },
+      },
       orderBy: { nombre: "asc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -38,7 +46,14 @@ export async function getLugaresPage(filter: LugaresFilter) {
   };
 }
 
-export async function getFiltros() {
+/** Catálogo de lugares aprobados, paginado y filtrado. Se cachea 60s por combinación de filtros
+ *  (evita ir a la base en cada navegación) y se invalida al tocar un lugar desde el admin. */
+export const getLugaresPage = unstable_cache(fetchLugaresPage, ["lugares-page"], {
+  tags: ["lugares"],
+  revalidate: 60,
+});
+
+async function fetchFiltros() {
   const [categorias, departamentos] = await Promise.all([
     prisma.categoria.findMany({ orderBy: { nombre: "asc" } }),
     prisma.departamento.findMany({ orderBy: { nombre: "asc" } }),
@@ -46,7 +61,13 @@ export async function getFiltros() {
   return { categorias, departamentos };
 }
 
-/** IDs de lugares favoritos del usuario (Set vacío si no hay sesión). */
+/** Categorías y departamentos para selects/filtros. Cambian poco — se cachean 5 min. */
+export const getFiltros = unstable_cache(fetchFiltros, ["filtros"], {
+  tags: ["categorias", "departamentos"],
+  revalidate: 300,
+});
+
+/** IDs de lugares favoritos del usuario (Set vacío si no hay sesión). Depende de la sesión: nunca se cachea. */
 export async function getFavoritoIds(userId: string | undefined): Promise<Set<number>> {
   if (!userId) return new Set();
   const favs = await prisma.favorito.findMany({
