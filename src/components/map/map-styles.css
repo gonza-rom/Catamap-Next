@@ -114,7 +114,21 @@
   text-decoration: none;
 }
 .cm-btn-route { background: #4caf50; color: #fff; }
-.cm-btn-detail { background: #e07b39; color: #fff; }
+.cm-btn-gmaps { background: #4285f4; color: #fff; }
+.cm-btn-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+  border-radius: 9999px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  background: #e07b39;
+  color: #fff;
+}
 
 .cm-popup-list-item {
   display: flex;
