@@ -74,7 +74,7 @@ export function InstallAppButton({
       </button>
       {showIOSHelp && (
         <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border bg-card p-3 text-sm shadow-lg">
-          <p className="font-medium">Instalar en iPhone/iPad</p>
+          <p className="font-medium">Instalar en iOS/Android</p>
           <p className="mt-1 text-muted-foreground">
             Tocá <Share className="inline size-3.5 -translate-y-0.5" /> Compartir en Safari y elegí
             “Agregar a inicio”.
