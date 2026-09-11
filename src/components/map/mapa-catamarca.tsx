@@ -9,19 +9,7 @@ import "./map-styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import {
-  Search,
-  SlidersHorizontal,
-  LocateFixed,
-  Star,
-  X,
-  ArrowLeft,
-  Rows3,
-  Navigation,
-  Navigation2,
-  XCircle,
-  Info,
-} from "lucide-react";
+import { Search, SlidersHorizontal, LocateFixed, Star, X, ArrowLeft, Rows3, Navigation, Info } from "lucide-react";
 import Link from "next/link";
 import { categoryPin, userIcon, favIcon } from "./icons";
 import { categoryIconSvg, iconToSvg } from "@/lib/icon-svg";
@@ -50,16 +38,6 @@ function railBtnClass(active?: boolean) {
   );
 }
 
-function haversine(a: L.LatLng, bLat: number, bLng: number) {
-  const R = 6371000;
-  const dLat = ((bLat - a.lat) * Math.PI) / 180;
-  const dLng = ((bLng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
 type Props = {
   lugares: MapaLugar[];
   favoritos: number[];
@@ -74,10 +52,7 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
   const activeCats = useRef<Set<string>>(new Set());
   const userLatLng = useRef<L.LatLng | null>(null);
   const userMarker = useRef<L.Marker | null>(null);
-  const routeLayer = useRef<L.GeoJSON | null>(null);
   const favLayer = useRef<L.LayerGroup | null>(null);
-  const navTarget = useRef<{ lat: number; lng: number } | null>(null);
-  const watchId = useRef<number | null>(null);
   const showFavsRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,7 +63,6 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
   const [panel, setPanel] = useState<"cats" | "search" | null>(null);
   const [query, setQuery] = useState("");
   const [showFavs, setShowFavs] = useState(false);
-  const [nav, setNav] = useState<{ distancia: number; duracion: number } | null>(null);
   const [, forceRerender] = useState(0);
 
   const categorias = useMemo(() => {
@@ -214,15 +188,6 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
     }
     if (saved?.favs) setTimeout(() => toggleFavsEnMapa(), 0);
 
-    // delegación de clicks en popups
-    map.on("popupopen", (e) => {
-      const node = (e.popup as L.Popup).getElement();
-      node?.querySelector<HTMLButtonElement>(".cm-btn-route")?.addEventListener("click", (ev) => {
-        const t = ev.currentTarget as HTMLElement;
-        iniciarNavegacion(Number(t.dataset.lat), Number(t.dataset.lng));
-      });
-    });
-
     map.on("moveend", () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(persist, 400);
@@ -240,7 +205,6 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
     });
 
     return () => {
-      if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
       map.remove();
       mapRef.current = null;
     };
@@ -287,84 +251,6 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
     activeCats.current.clear();
     forceRerender((n) => n + 1);
     persist();
-  }
-
-  // ── navegación "estilo Google Maps": calcula la ruta y sigue al usuario ──
-  function iniciarNavegacion(lat: number, lng: number) {
-    if (!userLatLng.current) {
-      toast.error("Activá tu ubicación para trazar la ruta");
-      return;
-    }
-    if (navTarget.current && navTarget.current.lat === lat && navTarget.current.lng === lng) {
-      detenerNavegacion();
-      return;
-    }
-    detenerNavegacion();
-    navTarget.current = { lat, lng };
-    calcularRuta(lat, lng);
-  }
-
-  async function calcularRuta(lat: number, lng: number) {
-    const map = mapRef.current;
-    if (!map || !userLatLng.current) return;
-    const id = toast.loading("Calculando ruta…");
-    try {
-      const r = await fetch("/api/ruta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from: [userLatLng.current.lng, userLatLng.current.lat], to: [lng, lat] }),
-      });
-      const data = await r.json();
-      if (!r.ok || !data.geometry) throw new Error(data.error || "Error");
-      if (routeLayer.current) map.removeLayer(routeLayer.current);
-      routeLayer.current = L.geoJSON(data.geometry, { style: { color: "#4CAF50", weight: 5 } }).addTo(map);
-      setNav({ distancia: data.distancia, duracion: data.duracion });
-      map.fitBounds(routeLayer.current.getBounds(), { padding: [60, 120] });
-      toast.success("Ruta calculada — siguiendo tu ubicación", { id });
-      setTimeout(iniciarSeguimientoGPS, 1000);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo calcular la ruta", { id });
-      navTarget.current = null;
-    }
-  }
-
-  function iniciarSeguimientoGPS() {
-    const map = mapRef.current;
-    if (!map || !navigator.geolocation) return;
-    if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
-        userLatLng.current = ll;
-        if (userMarker.current) userMarker.current.setLatLng(ll);
-        else userMarker.current = L.marker(ll, { icon: userIcon(), zIndexOffset: 1000 }).addTo(map);
-        map.panTo(ll, { animate: true, duration: 0.5 });
-        if (map.getZoom() < 16) map.setZoom(17, { animate: true });
-        if (navTarget.current) {
-          const dist = haversine(ll, navTarget.current.lat, navTarget.current.lng);
-          setNav((n) => (n ? { ...n, distancia: dist } : n));
-          if (dist < 40) {
-            toast.success("¡Llegaste a destino!");
-            detenerNavegacion();
-          }
-        }
-      },
-      () => toast.error("No se pudo seguir tu ubicación en vivo"),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
-    );
-  }
-
-  function detenerNavegacion() {
-    if (watchId.current != null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
-    }
-    if (routeLayer.current) {
-      mapRef.current?.removeLayer(routeLayer.current);
-      routeLayer.current = null;
-    }
-    navTarget.current = null;
-    setNav(null);
   }
 
   function irAMiUbicacion() {
@@ -424,30 +310,6 @@ export default function MapaCatamarca({ lugares, favoritos, isAuthenticated }: P
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
-
-      {/* barra de navegación activa (estilo Google Maps) */}
-      {nav && (
-        <div className="absolute inset-x-2 bottom-[4.5rem] z-[1000] flex items-center gap-3 rounded-2xl bg-white p-3 shadow-2xl sm:inset-x-auto sm:bottom-4 sm:left-20 sm:right-4 sm:max-w-sm">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-green-600 text-white">
-            <Navigation2 className="size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-lg font-bold leading-none">
-              {nav.distancia >= 1000 ? `${(nav.distancia / 1000).toFixed(1)} km` : `${Math.round(nav.distancia)} m`}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              ~{Math.max(1, Math.round(nav.duracion / 60))} min · siguiendo tu ubicación
-            </p>
-          </div>
-          <button
-            onClick={detenerNavegacion}
-            title="Salir de la navegación"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-red-500 text-white hover:bg-red-600"
-          >
-            <XCircle className="size-5" />
-          </button>
-        </div>
-      )}
 
       {/* rail de accesos: cada botón muestra ícono + etiqueta para que se entienda sin tocar */}
       <div
@@ -575,12 +437,13 @@ function popupHtml(l: MapaLugar) {
   const img = lugarImg(l.imagen);
   const routeSvg = iconToSvg(Navigation, { size: 14, color: "#fff" });
   const infoSvg = iconToSvg(Info, { size: 14, color: "#fff" });
+  const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}&travelmode=driving`;
   return `<div class="cm-popup">
     <img class="cm-popup-img" src="${img}" alt="" onerror="this.style.display='none'"/>
     <h4>${escapeHtml(l.nombre)}</h4>
     ${l.descripcion ? `<p>${escapeHtml(l.descripcion.slice(0, 120))}</p>` : ""}
     <div class="cm-popup-actions">
-      <button class="cm-btn-route" data-lat="${l.lat}" data-lng="${l.lng}">${routeSvg}Ir aquí</button>
+      <a class="cm-btn-route" href="${gmapsUrl}" target="_blank" rel="noopener noreferrer">${routeSvg}Ir aquí</a>
       <a class="cm-btn-detail" href="/lugares/${l.id}">${infoSvg}Ver detalle</a>
     </div>
   </div>`;
